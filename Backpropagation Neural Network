@@ -1,0 +1,88 @@
+###################loading Original data ####################################
+getwd()
+setwd("C:/Users/Muleya/Documents/clients work/Commodities/EMD method")
+CP<-read.csv("NewCORN.csv",header=TRUE)
+Corn_Price <- CP$PX_LAST
+library(EMD)
+library(neuralnet)
+library(forecast)
+library(nnet)
+set.seed(123)
+
+
+###################decomposin data###########################################
+Corn_Price_IMFs<- emd(Corn_Price, tt=NULL, tol=sd(Corn_Price)*0.1^2,boundary="periodic")
+write.table(Corn_Price,file="Corn_Price_IMFs.csv", sep=" ", col.names = TRUE)
+
+###################Normalizing data #########################################
+normalize <- function(x){return((x-min(x))/(max(x)-min(x)))}
+Corn_Price_IMFs$imf_norm <- normalize(Corn_Price_IMFs$imf)
+Corn_Price_IMFs$residue_norm <- normalize(Corn_Price_IMFs$residue)
+head(Corn_Price_IMFs$imf_norm,2);tail(Corn_Price_IMFs$imf_norm,2)
+
+
+#Corn_Price_IMFs$imf
+####################partition data #################################
+CP_IMFs_norm<- Corn_Price_IMFs$imf_norm
+index <- sample(nrow(CP_IMFs_norm),round(0.8*nrow(CP_IMFs_norm)))
+training.emd <- CP_IMFs_norm[index,]
+testing.emd <- CP_IMFs_norm[-index,]
+################Using nnetar ###############################
+nn_1 <- Corn_Price_IMFs$imf_norm[,1]
+fit_1 <- nnetar(nn_1,h=149)
+
+fcast_1 <- forecast(fit_1,fit_1$fitted)
+plot.ts(fit_1)
+plot.ts(fcast_1)
+
+nn_2<- Corn_Price_IMFs$imf_norm[,2]
+fit_2 <- nnetar(nn_2)
+fit_2$fitted
+nn_3 <- Corn_Price_IMFs$imf_norm[,3]
+fit_3 <- nnetar(nn_3)
+fit_3$fitted
+nn_4<-Corn_Price_IMFs$imf_norm[,4]
+fit_4 <- nnetar(nn_4)
+fit_4$fitted
+nn_5 <- Corn_Price_IMFs$imf_norm[,5]
+fit_5 <- nnetar(nn_1)
+fit_5$fitted
+nn_6<- Corn_Price_IMFs$imf_norm[,6]
+fit_6 <- nnetar(nn_2)
+fit_6$fitted
+nn_7 <- Corn_Price_IMFs$imf_norm[,7]
+fit_7 <- nnetar(nn_7)
+fit_7$fitted
+nn_8<-Corn_Price_IMFs$imf_norm[,8]
+fit_8 <- nnetar(nn_8)
+fit_8$fitted
+nn_9<-Corn_Price_IMFs$imf_norm[,9]
+fit_9 <- nnetar(nn_9)
+fit_9$fitted
+nn_res<-Corn_Price_IMFs$residue_norm
+fit_res <- nnetar(nn_res)
+fit_res$residuals
+
+sum_fitted <- (fit_1$fitted+fit_2$fitted+fit_3$fitted+fit_4$fitted+fit_5$fitted+fit_6$fitted+fit_7$fitted+fit_8$fitted+fit_9$fitted+fit_res$residuals)
+head(sum_fitted);tail(sum_fitted)
+str(sum_fitted)
+summary(sum_fitted)
+fcast <- forecast(fit)
+plot.ts(fcast)
+
+
+###################Denormalise fitted data ###################################
+y <- Corn_Price_IMFs$imf[,1]
+minvec <- sapply(y,min)
+maxvec <- sapply(y,max)
+denormalize <- function(y,minval,maxval){y*(maxval-minval)+minval}
+w <- denormalize(nn_1,minvec,maxvec)
+head(w,2);tail(w,2)
+
+fcast1 <- forecast(w)
+plot(fcast1)
+##################Prediction #################################################
+
+
+
+##################Summation of prediction data###################################
